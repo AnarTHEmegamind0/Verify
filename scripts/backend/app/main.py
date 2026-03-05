@@ -3,7 +3,8 @@
 Face Recognition санг ашиглан хоёр зургийн таарах хувийг тооцоолно
 """
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+import os
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -18,20 +19,40 @@ from typing import Optional, Literal
 import hashlib
 import random
 
+# Environment variables
+API_KEY = os.getenv("API_KEY", "")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "https://verify-app-tau.vercel.app").split(",")
+
 app = FastAPI(
     title="Face Matching API",
     description="Иргэний үнэмлэх болон нүүрний зургийг харьцуулах API",
     version="1.0.0"
 )
 
-# CORS тохиргоо - frontend-тэй холбогдоход шаардлагатай
+# CORS тохиргоо - зөвхөн зөвшөөрөгдсөн domain-уудаас хандахыг зөвшөөрөх
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Production-д зөвхөн тодорхой domain зөвшөөрөх
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+async def verify_api_key(x_api_key: str = Header(None)):
+    """
+    API Key шалгах middleware
+    """
+    if not API_KEY:
+        # API_KEY тохируулаагүй бол шалгалтыг алгасах (dev mode)
+        return True
+    
+    if x_api_key != API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing API key"
+        )
+    return True
 
 
 async def load_image_from_upload(file: UploadFile):
@@ -225,7 +246,8 @@ async def health_check():
 async def face_match_api(
     id_card: UploadFile = File(..., description="Иргэний үнэмлэхний зураг"),
     face_photo: UploadFile = File(..., description="Нүүрний зураг"),
-    tolerance: float = 0.6
+    tolerance: float = 0.6,
+    _: bool = Depends(verify_api_key)
 ):
     """
     Иргэний үнэмлэх болон нүүрний зургийг харьцуулах API endpoint
@@ -330,7 +352,7 @@ class FaceMatchRequest(BaseModel):
 
 
 @app.post("/verify/extract-document")
-async def extract_document(request: ExtractDocumentRequest):
+async def extract_document(request: ExtractDocumentRequest, _: bool = Depends(verify_api_key)):
     """
     Иргэний үнэмлэхнээс мэдээлэл task (stub implementation)
     Frontend compatibility-ийн төлөө deterministic response буцаана
@@ -372,7 +394,7 @@ async def extract_document(request: ExtractDocumentRequest):
 
 
 @app.post("/verify/face-match")
-async def verify_face_match(request: FaceMatchRequest):
+async def verify_face_match(request: FaceMatchRequest, _: bool = Depends(verify_api_key)):
     """
     Frontend-тэй тохирсон face match endpoint
     Base64 зургууд хүлээн авч, face_recognition ашиглан харьцуулна

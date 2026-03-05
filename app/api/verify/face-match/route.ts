@@ -21,9 +21,14 @@ export async function POST(request: NextRequest) {
     }
 
     const backendBase = process.env.BACKEND_URL || 'http://localhost:8000'
+    const apiKey = process.env.API_KEY || ''
+    
     const response = await fetch(`${backendBase}/verify/face-match`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+      },
       body: JSON.stringify({
         idImage: body.idImage,
         selfieImage: body.selfieImage,

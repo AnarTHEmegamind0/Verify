@@ -21,9 +21,14 @@ export async function POST(request: NextRequest) {
     }
 
     const backendBase = process.env.BACKEND_URL || 'http://localhost:8000'
+    const apiKey = process.env.API_KEY || ''
+    
     const response = await fetch(`${backendBase}/verify/extract-document`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+      },
       body: JSON.stringify({
         image_base64: body.imageBase64,
         side: body.side || 'front',
